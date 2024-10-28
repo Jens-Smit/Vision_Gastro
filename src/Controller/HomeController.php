@@ -2,13 +2,17 @@
 
 namespace App\Controller;
 
+use App\Entity\Comments;
 use App\Repository\ObjektCategoriesRepository;
 use App\Repository\ObjektRepository;
+use DateTime;
+use Doctrine\Persistence\ObjectManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Mailer\MailerInterface;
@@ -36,49 +40,116 @@ class HomeController extends AbstractController
      * constructs an email message, and sends it using the MailerInterface.
      */
     #[Route('/', name: 'home', methods: ['GET', 'POST'])]
-    public function index(Request $request,MailerInterface $mailer): Response
+    public function index(ObjectManager $manager,MailerInterface $mailer): Response
     {
-       
-        $form = $this->createFormBuilder(null, [
-            'attr' => ['class' => 'w-100']
-        ])
-        ->add('email', EmailType::class, [
-            'attr' => ['class' => 'w-100']
-        ])
-        ->add('Firmenname', TextType::class, [
-            'attr' => ['class' => 'w-100']
-        ])
-        ->add('Nachricht', TextareaType::class, [
-            'attr' => ['class' => 'w-100']
-        ])
-        
-        ->add('submit', SubmitType::class, [
-            'label' => 'Anfrage senden',
-            'attr' => ['class' => 'btn-info w-100 btn']
-        ])
-        ->getForm();
-        $form -> handleRequest($request);
-       
+        $comments = $manager->getRepository(Comments::class)->findBy([], ['datetime' => 'DESC'], 5);
 
-       if ($form->isSubmitted() && $form->isValid()) {
-           $data = $form->getData();
-           $user_email= $data['email'];
-           $Firmenname = $data['Firmenname'];
-           $Nachricht = $data['Nachricht'];
-           $email = (new Email())
-            ->from($user_email)
-            ->to('info@tex-mex.de')
-            ->subject('Anfrage BETA-User '.$Firmenname )
-            ->text($Nachricht)
-            ->html('txt');
+       
+       
+        /*
+        if ($form->isSubmitted() && $form->isValid()) {
+            $data = $form->getData();
+            $user_email= $data['email'];
+            $Firmenname = $data['Firmenname'];
+            $Nachricht = $data['Nachricht'];
+            $email = (new Email())
+                ->from($user_email)
+                ->to('info@tex-mex.de')
+                ->subject('Anfrage BETA-User '.$Firmenname )
+                ->text($Nachricht)
+                ->html('txt');
 
-            $mailer->send($email);
-         
-       }
-        return $this->render('home/index.html.twig', [
-            'form' => $form->createView()
+                $mailer->send($email);
+            
+        }
+        */
+        return $this->render('home/index.html.twig',[
+            'posts' => $comments,
         ]);
     }
+    /**
+     * The function handles a POST request to save a comment with user details and sends a JSON
+     * response.
+     * 
+     * Args:
+     *   request (Request): The code snippet you provided is a PHP function that handles a POST request
+     * to a specific route '/post'. It takes in parameters such as the Request object, ObjectManager,
+     * and MailerInterface.
+     *   manager (ObjectManager): The `` parameter in the code snippet you provided is an
+     * instance of `ObjectManager`, which is typically used in Symfony applications for managing
+     * entities and their lifecycle. In this context, it is used to persist the `Comments` entity to
+     * the database using the `persist` and `flush` methods
+     *   mailer (MailerInterface): The code snippet you provided is a PHP function that handles a POST
+     * request to create a new comment. It takes input parameters such as email, user, and comment from
+     * the request, creates a new Comments entity, sets its properties, persists it to the database
+     * using Doctrine's ObjectManager, and returns a
+     * 
+     * Returns:
+     *   The code snippet is a PHP function that handles a POST request to create a new comment. It
+     * takes in the request object, ObjectManager for database operations, and MailerInterface for
+     * sending emails. It extracts the email, username, and comment content from the request, creates a
+     * new Comments entity with the provided data, persists it to the database, and returns a JSON
+     * response with the user, comment,
+     */
+    #[Route('/post', name: 'post', methods: ['GET', 'POST'])]
+    public function post( Request $request,ObjectManager $manager,MailerInterface $mailer): Response
+    {   $email = $request->request->get('mail');
+        $user = $request->request->get('user');
+        $comment = $request->request->get('comments');
+        $now = new DateTime();
+        $comments = new Comments();
+        $comments->setDatetime($now);
+        $comments->setEmail($email);
+        $comments->setPost($comment);
+        $comments->setUsername($user);
+        $manager->persist($comments);
+        try {
+            $manager->flush();
+            $response = [
+                'user' => $user,
+                'comment' => $comment,
+                'datetime' => $now->format('Y-m-d H:i:s')
+            ];
+        } catch (\Exception $e) {
+            $response = ['error' => 'Could not save comment'];
+        }
+        return new JsonResponse($response);
+    }
+    #[Route('/community', name: 'community', methods: ['GET', 'POST'])]
+    public function community(Request $request, ObjectManager $manager, MailerInterface $mailer): Response
+    {
+        $userEmail  = $request->request->get('mail');
+        
+        $Nachricht = 'Willkommen bei Vision Gastro – Deine Reise in die Zukunft der Gastronomie beginnt jetzt!
+    
+        Herzlich willkommen in der Vision Gastro Community! Wir freuen uns sehr, dass du dich entschieden hast, Teil unserer innovativen Gemeinschaft zu werden.
+    
+        Mit Vision Gastro hast du die Möglichkeit, dein Restaurant flexibel und kostengünstig zu managen. Unsere Plattform bietet dir die Werkzeuge und Ressourcen, die du benötigst, um dein Geschäft auf das nächste Level zu heben.
+    
+        Was dich erwartet:
+        - Flexibles Management: Verwalte dein Restaurant von überall aus.
+        - Kosteneffizienz: Spare Zeit und Geld mit unseren optimierten Prozessen.
+        - Community: Vernetze dich mit anderen Gastronomie-Profis und tausche wertvolle Erfahrungen aus.
+    
+        Wir sind begeistert, dich auf dieser spannenden Reise zu begleiten und gemeinsam die Gastronomie zu revolutionieren. Bleib gespannt auf weitere Updates und exklusive Inhalte, die dir helfen werden, das Beste aus Vision Gastro herauszuholen.
+    
+        Falls du Fragen hast oder Unterstützung benötigst, zögere nicht, uns zu kontaktieren. Wir sind immer für dich da!
+    
+        Mit freundlichen Grüßen,
+        Dein Vision Gastro Team';
+    
+        $email = (new Email())
+            ->from('office@tex-mex.de')
+            ->to($userEmail )
+            ->subject('Teil der Vision Gastro Community werden')
+            ->text($Nachricht)
+            ->html(nl2br($Nachricht));
+    
+        $mailer->send($email);
+        
+        return new JsonResponse(true);
+    }
+    
     /**
      * The above function is a PHP route that renders a Twig template for the "about" page.
      * 
