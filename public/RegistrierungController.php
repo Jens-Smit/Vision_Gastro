@@ -6,6 +6,7 @@ use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
+use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,7 +18,7 @@ use Symfony\Component\Routing\Annotation\Route;
 class RegistrierungController extends AbstractController
 {
     #[Route('/Registrierung', name: 'reg')]
-    public function reg(Request $request,UserPasswordHasherInterface $passEncoder, ManagerRegistry $doctrine, UserRepository $userRepository): Response
+    public function reg(Request $request,UserPasswordHasherInterface $passEncoder,ManagerRegistry $doctrine, UserRepository $userRepository): Response
     {
         $regform = $this->createFormBuilder()
         ->add('email', TextType::class,[
@@ -26,10 +27,11 @@ class RegistrierungController extends AbstractController
             'label' => 'Vorname'])
         ->add('nachname', TextType::class,[
             'label' => 'Nachname'])
-        ->add('password', PasswordType::class,[
+        ->add('password', RepeatedType::class,[
+            'type' => PasswordType::class,
             'required' => true,
-            'label'=> 'Passwort',
-            
+            'first_options' =>['label'=> 'Passwort'],
+            'second_options' =>['label'=> 'Passwort wiederholden']
         ])
         ->add('registrieren', SubmitType::class)
         ->getForm()
@@ -48,7 +50,7 @@ class RegistrierungController extends AbstractController
                     $user->setPassword(
                         $passEncoder->hashPassword($user, $eingabe['password'])
                     );
-                    $user->setRoles(["ROLE_USER","ROLE_ADMIN","ROLE_HR"]);
+                    $user->setRoles(["ROLE_USER","ROLE_ADMIN"]);
                     $em=$doctrine->getManager();
                     $em->persist($user);
                     $em->flush();
